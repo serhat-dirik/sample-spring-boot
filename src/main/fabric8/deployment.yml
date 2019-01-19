@@ -1,0 +1,41 @@
+apiVersion: v1
+kind: Deployment
+metadata:
+  name: ${project.artifactId}
+spec:
+  template:
+    spec:
+      serviceAccountName: "sa-spring-demo"
+      volumes:
+        - name: "application-config"
+          secret:
+            # The secret must be created before deploying this application
+            secretName: "application-config"
+      containers:
+        -
+          volumeMounts:
+            - name: "application-config"
+              readOnly: true
+              # Mount the secret where spring-cloud-kubernetes is configured to read it
+              # see src/main/resources/bootstrap.yml
+              mountPath: "/etc/secrets/application-config"
+          resources:
+           requests:
+             cpu: "0.2"
+             memory: 256Mi
+           limits:
+             cpu: "1.0"
+             memory: 256Mi
+          env:
+            - name: DB_USERNAME
+              valueFrom:
+                 secretKeyRef:
+                   name: application-config
+                   key: user
+            - name: DB_PASSWORD
+              valueFrom:
+                 secretKeyRef:
+                   name: application-config
+                   key: password
+            - name: JAVA_OPTIONS
+              value: "-Dspring.profiles.active=openshift"

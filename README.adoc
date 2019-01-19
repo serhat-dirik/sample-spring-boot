@@ -1,0 +1,62 @@
+= Sample Spring Application
+
+IMPORTANT: While you can run and interact with this demo on our local host, it requires that you also have a database installed and configured. This demo runs best when deployed on OpenShift with a PostgreSQL database.
+
+IMPORTANT: This demo requires Java 8 JDK or greater and Maven 3.3.x or greater.
+
+
+
+== Running the Demo on a OpenShift Cluster
+If you have a  OpenShift cluster, such as  the Red Hat Container Development Kit, link:http://appdev.openshift.io/docs/minishift-installation.html[installed and running], you can also deploy your demo there.
+
+To deploy your demo to a running single-node OpenShift cluster:
+
+[source,bash,options="nowrap",subs="attributes+"]
+----
+$ oc login -u developer -p developer
+
+$ oc new-project MY_PROJECT_NAME
+
+# Ensure that you use the following values for the user name, password and database name when creating your database application.
+# The pre-configured values are used in the `credentials-secret.yml` and `deployment.yml` files in the `src/main/fabric8` directory of your booster application project.
+
+$ oc new-app -e POSTGRESQL_USER=luke -ePOSTGRESQL_PASSWORD=secret -ePOSTGRESQL_DATABASE=my_data openshift/postgresql-92-centos7 --name=my-database
+
+# Wait for `my-database` application to be running.
+
+$ mvn clean fabric8:deploy -Popenshift
+----
+
+
+== Interacting with the demo
+
+To interact with your demo, you just need to visit it's root URL:
+
+[source,bash,options="nowrap",subs="attributes+"]
+----
+$ oc get route MY_APP_NAME -o jsonpath={$.spec.host}
+
+MY_APP_NAME-MY_PROJECT_NAME.LOCAL_OPENSHIFT_HOSTNAME
+----
+
+== Deploy Application with CI/CD
+
+In order to deploy the complete demo with CI/CD, use the following script to provision the demo
+on any OpenShift environment.
+
+**NOTE:** OpenShift 3.7 by default uses an older version of Jenkins. Import all Jenkins image tags in order to use the newer Jenkins image for this demo:
+
+[source,bash,options="nowrap",subs="attributes+"]
+----
+$ oc login -u system:admin
+$ oc import-image jenkins --from="registry.access.redhat.com/openshift3/jenkins-2-rhel7" --confirm --all -n openshift
+$ oc login -u USER
+----
+
+And then provision the demo:
+   TBD
+   oc new-build --name=sample-pipeline https://github.com/serhat-dirik/sample-spring-boot --context-dir=pipeline --strategy=pipeline
+
+test
+  b-g service
+ configmap  -service - env 
