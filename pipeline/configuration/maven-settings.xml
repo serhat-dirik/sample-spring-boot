@@ -10,7 +10,7 @@
 		<mirror>
 			<id>nexus</id>
 			<mirrorOf>*</mirrorOf>
-			<url>http://nexus-cn-demo.192.168.64.24.nip.io/repository/maven-all-public/</url>
+			<url>http://nexus:8081/repository/maven-all-public/</url>
 		</mirror>
 	</mirrors>
 </settings>
