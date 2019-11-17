@@ -1,0 +1,54 @@
+apiVersion: apps.openshift.io/v1
+kind: DeploymentConfig
+metadata:
+  name: sample-spring-boot
+  labels:
+    app: sample-spring-boot
+spec:
+  template:
+    spec:
+      serviceAccountName: "sa-spring-demo"
+      volumes:
+        - name: "application-config"
+          secret:
+            # The secret must be created before deploying this application
+            secretName: "application-config"
+      containers:
+        - image: >-
+            docker-registry.default.svc:5000/samples1-dev/sample-spring-boot@sha256:92a466e713d3db338f8f5a1a040c577a9b2e5a4b6d19f429e5cee126bfddf128
+          imagePullPolicy: Always
+          name: sample-spring-boot
+          ports:
+            - containerPort: 8080
+              protocol: TCP
+            - containerPort: 8443
+              protocol: TCP
+            - containerPort: 8778
+              protocol: TCP
+        -
+          volumeMounts:
+            - name: "application-config"
+              readOnly: true
+              # Mount the secret where spring-cloud-kubernetes is configured to read it
+              # see src/main/resources/bootstrap.yml
+              mountPath: "/etc/secrets/application-config"
+          resources:
+           requests:
+             cpu: "0.2"
+             memory: 256Mi
+           limits:
+             cpu: "1.0"
+             memory: 256Mi
+          env:
+            - name: DB_USERNAME
+              valueFrom:
+                 secretKeyRef:
+                   name: application-config
+                   key: user
+            - name: DB_PASSWORD
+              valueFrom:
+                 secretKeyRef:
+                   name: application-config
+                   key: password
+            - name: JAVA_OPTIONS
+              value: "-Dspring.profiles.active=openshift"

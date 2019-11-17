@@ -1,0 +1,65 @@
+apiVersion: build.openshift.io/v1
+kind: BuildConfig
+metadata:
+  labels:
+    name: bluegreen-pipeline
+  name: bluegreen-pipeline
+spec:
+  failedBuildsHistoryLimit: 5
+  nodeSelector: {}
+  output: {}
+  postCommit: {}
+  resources: {}
+  runPolicy: SerialLatestOnly
+  source:
+    type: None
+  strategy:
+    jenkinsPipelineStrategy:
+      jenkinsfile: "#!groovy\nnode('maven') {\n\n   stage ('Build') {\n     //Jenkins
+        & gogs are in the same namespace\n     git branch: 'master', url: 'https://github.com/serhat-dirik/sample-spring-boot'\n
+        \    sh \"mvn clean install -Popenshift -DskipTests\"\n   }\n\n   stage ('Unit
+        Test & Static Analysis') {\n          sleep 5 \n          //disabled for demo\n
+        \         //sh \"mvn test\"\n   }\n\n   stage ('Deploy DEV') {\n     def v
+        = version()\n    echo \"Building image with the latest jar\"\n    sh \"oc
+        start-build sample-spring-boot-s2i --from-file=./target/sample-spring-boot.jar
+        \ --wait=true --follow -n samples1-dev\"\n    echo \"Verifying the build...\"\n
+        \   openshiftVerifyBuild(buildConfig: 'sample-spring-boot-s2i', namespace:
+        'samples1-dev', waitTime: 900000)\n    echo \"Build is also triggered to deployment
+        to DEV environment\"\n    openshiftVerifyDeployment(deploymentConfig: \"sample-spring-boot\",
+        replicaCount: 1, verifyReplicaCount: true, namespace: 'samples1-dev')\n    echo
+        \"Verifying the deployment...\"\n   }\n   \n   stage ('Deploy Stage') {\n
+        \    def v = version()\n\n     echo 'Promoting dev to stage ...'\n\n     openshiftTag(sourceStream:
+        'sample-spring-boot', sourceTag: 'latest', namespace: 'samples1-dev', destinationStream:
+        'sample-spring-boot', destinationTag: \"stage\", destinationNamespace: 'samples1-dev')\n
+        \    echo 'Deploying ...'\n     sleep 22\n     openshiftVerifyDeployment(deploymentConfig:
+        \"sample-spring-boot\", replicaCount: 1, verifyReplicaCount: true, namespace:
+        'samples1-stage')\n\n   }\n   \n   def tag=\"blue\"\n   def altTag=\"green\"\n\n
+        \  stage ('Deploy Prod') {\n     def v = version()\n\n     echo 'Promoting
+        production stage ...'\n     //Find the active service\n     sh \"oc get route
+        sample-spring-boot -n samples1-prod -o jsonpath='{ .spec.to.name }' > activeservice\"\n
+        \    activeService = readFile('activeservice').trim()\n     echo \"Active
+        Service : ${activeService}\"\n     if (activeService == \"sample-spring-boot-blue\")
+        {\n         tag = \"green\"\n         altTag = \"blue\"\n     }\n     echo
+        \"Deploying  sample-spring-boot-${tag}\"\n\n     openshiftTag(sourceStream:
+        'sample-spring-boot', sourceTag: 'latest', namespace: 'samples1-dev', destinationStream:
+        'sample-spring-boot', destinationTag: \"prod-${tag}\", destinationNamespace:
+        'samples1-dev')\n     openshiftTag(sourceStream: 'sample-spring-boot', sourceTag:
+        'latest', namespace: 'samples1-dev', destinationStream: 'sample-spring-boot',
+        destinationTag: \"prod-${v}\", destinationNamespace: 'samples1-dev')\n     echo
+        'Deploying ...'\n     sleep 22\n     openshiftVerifyDeployment(deploymentConfig:
+        \"sample-spring-boot-${tag}\", replicaCount: 1, verifyReplicaCount: true,
+        namespace: 'samples1-prod')\n\n   }\n\n   stage ('Smoke Tests in Prod Stage
+        (Not Live)! This is your part to play!!'){\n\n   }\n\n   stage ('Approve to
+        go Live (You have 30 minutes to complete this step) ??') {\n\n     timeout(time:30,
+        unit:'MINUTES') {\n        input message:'Go Live in PROD (switch to new version
+        ${tag} )?' , ok: \"Promote ${tag}\"\n     }\n\n     sh \"oc set route-backends
+        sample-spring-boot sample-spring-boot-${tag}=100 sample-spring-boot-${altTag}=0
+        -n samples1-prod\"\n     sh \"oc label svc sample-spring-boot-${altTag} state=idle
+        --overwrite -n samples1-prod\"\n     sh \"oc label svc sample-spring-boot-${tag}
+        state=active --overwrite -n samples1-prod\"\n     echo \"Now the prod deployment
+        switched to the ${tag} version\"\n   }\n\n\n}\n\ndef version() {\n  def matcher
+        = readFile('pom.xml') =~ '<version>(.+)</version>'\n  matcher ? matcher[0][1]
+        : null\n}"
+    type: JenkinsPipeline
+  successfulBuildsHistoryLimit: 5
+  triggers: []

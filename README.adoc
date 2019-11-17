@@ -15,7 +15,7 @@ To deploy your demo to a running single-node OpenShift cluster:
 ----
 $ oc login -u developer -p developer
 
-$ oc new-project MY_PROJECT_NAME
+$ oc new-project samples1-dev
 
 # Ensure that you use the following values for the user name, password and database name when creating your database application.
 # The pre-configured values are used in the `credentials-secret.yml` and `deployment.yml` files in the `src/main/fabric8` directory of your booster application project.
@@ -40,23 +40,38 @@ MY_APP_NAME-MY_PROJECT_NAME.LOCAL_OPENSHIFT_HOSTNAME
 ----
 
 == Deploy Application with CI/CD
-
-In order to deploy the complete demo with CI/CD, use the following script to provision the demo
-on any OpenShift environment.
-
-**NOTE:** OpenShift 3.7 by default uses an older version of Jenkins. Import all Jenkins image tags in order to use the newer Jenkins image for this demo:
-
-[source,bash,options="nowrap",subs="attributes+"]
 ----
-$ oc login -u system:admin
-$ oc import-image jenkins --from="registry.access.redhat.com/openshift3/jenkins-2-rhel7" --confirm --all -n openshift
-$ oc login -u USER
+  oc tag sample-spring-boot:latest sample-spring-boot:stage -n samples1-dev
+  oc tag sample-spring-boot:latest sample-spring-boot:prod-blue -n samples1-dev
+  oc tag sample-spring-boot:latest sample-spring-boot:prod-green -n samples1-dev
+  cd deploy-support
+  oc new-project samples1-stage
+  oc create -f configmap.yml
+  oc create -f sa.yml
+  oc create -f rb.yml
+  oc create -f secret.yml
+  oc policy add-role-to-user system:image-puller system:serviceaccount:samples1-stage:sa-spring-demo -n samples1-dev
+  oc new-app -e POSTGRESQL_USER=luke -ePOSTGRESQL_PASSWORD=secret -ePOSTGRESQL_DATABASE=my_data openshift/postgresql-92-centos7 --name=my-database
+  oc create -f deploy-stage.yml
+  oc create -f svc-stage.yml
+  oc create -f route-stage.yml
+
+  oc new-project samples1-prod
+  oc create -f configmap.yml
+  oc create -f sa.yml
+  oc create -f rb.yml
+  oc create -f secret.yml
+  oc policy add-role-to-user system:image-puller system:serviceaccount:samples1-prod:sa-spring-demo -n samples1-dev
+  oc new-app -e POSTGRESQL_USER=luke -ePOSTGRESQL_PASSWORD=secret -ePOSTGRESQL_DATABASE=my_data openshift/postgresql-92-centos7 --name=my-database
+  oc create -f deploy-prod-blue.yml
+  oc create -f svc-prod-blue.yml
+  oc create -f deploy-prod-green.yml
+  oc create -f svc-prod-green.yml
+  oc create -f route-prod.yml
+
+  cd ../pipeline
+  oc project samples1-dev
+  oc create -f pipeline.yml
+  oc policy add-role-to-user edit system:serviceaccount:samples1-dev:jenkins -n samples1-stage
+  oc policy add-role-to-user edit system:serviceaccount:samples1-dev:jenkins -n samples1-prod
 ----
-
-And then provision the demo:
-   TBD
-   oc new-build --name=sample-pipeline https://github.com/serhat-dirik/sample-spring-boot --context-dir=pipeline --strategy=pipeline
-
-test
-  b-g service
- configmap  -service - env 
