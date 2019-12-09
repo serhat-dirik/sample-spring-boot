@@ -1,16 +1,16 @@
 #!groovy
 node('maven') {
-   // define commands
-   def mvnCmd = "mvn -s pipeline/configuration/maven-settings.xml"
 
    stage ('Build') {
      //Jenkins & gogs are in the same namespace
      git branch: 'master', url: 'https://github.com/serhat-dirik/sample-spring-boot'
-     sh "${mvnCmd} clean install -Popenshift -DskipTests"
+     sh "mvn clean install -Popenshift -DskipTests"
    }
 
    stage ('Unit Test & Static Analysis') {
-          sh "${mvnCmd} test"
+          sleep 5
+          //disabled for demo
+          //sh "mvn test"
    }
 
    stage ('Deploy DEV') {
@@ -23,13 +23,15 @@ node('maven') {
     openshiftVerifyDeployment(deploymentConfig: "sample-spring-boot", replicaCount: 1, verifyReplicaCount: true, namespace: 'sample-dev')
     echo "Verifying the deployment..."
    }
+
+
    def tag="blue"
    def altTag="green"
 
-   stage ('Deploy Test') {
+   stage ('Deploy test') {
      def v = version()
 
-     echo 'Promoting dev to test ...'
+     echo 'Promoting to test stage ...'
      //Find the active service
      sh "oc get route sample-spring-boot -n sample-test -o jsonpath='{ .spec.to.name }' > activeservice"
      activeService = readFile('activeservice').trim()
@@ -48,14 +50,14 @@ node('maven') {
 
    }
 
-   stage ('Smoke Tests in Test Stage (Not Live)! This is your part to play!!'){
+   stage ('Smoke Tests in test Stage (Not Live)! This is your part to play!!'){
 
    }
 
    stage ('Approve to go Live (You have 30 minutes to complete this step) ??') {
 
      timeout(time:30, unit:'MINUTES') {
-        input message:'Go Live in Test (switch to new version ${tag} )?' , ok: "Promote ${tag}"
+        input message:'Go Live in test (switch to new version ${tag} )?' , ok: "Promote ${tag}"
      }
 
      sh "oc set route-backends sample-spring-boot sample-spring-boot-${tag}=100 sample-spring-boot-${altTag}=0 -n sample-test"

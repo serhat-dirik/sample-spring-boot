@@ -1,0 +1,10 @@
+apiVersion: "v1"
+kind: "RoleBinding"
+metadata:
+  name: "sa-spring-demo"
+roleRef:
+  # Add the view role to the service account
+  name: "view"
+subjects:
+  - kind: "ServiceAccount"
+    name: "sa-spring-demo"

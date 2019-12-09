@@ -15,7 +15,7 @@ To deploy your demo to a running single-node OpenShift cluster:
 ----
 $ oc login -u developer -p developer
 
-$ oc new-project samples1-dev
+$ oc new-project sample-dev
 
 # Ensure that you use the following values for the user name, password and database name when creating your database application.
 # The pre-configured values are used in the `credentials-secret.yml` and `deployment.yml` files in the `src/main/fabric8` directory of your booster application project.
@@ -41,37 +41,28 @@ MY_APP_NAME-MY_PROJECT_NAME.LOCAL_OPENSHIFT_HOSTNAME
 
 == Deploy Application with CI/CD
 ----
-  oc tag sample-spring-boot:latest sample-spring-boot:stage -n samples1-dev
-  oc tag sample-spring-boot:latest sample-spring-boot:prod-blue -n samples1-dev
-  oc tag sample-spring-boot:latest sample-spring-boot:prod-green -n samples1-dev
+  oc tag sample-spring-boot:latest sample-spring-boot:test-blue -n sample-dev
+  oc tag sample-spring-boot:latest sample-spring-boot:test-green -n sample-dev
   cd deploy-support
-  oc new-project samples1-stage
+  oc new-project samples-test
   oc create -f configmap.yml
   oc create -f sa.yml
   oc create -f rb.yml
   oc create -f secret.yml
-  oc policy add-role-to-user system:image-puller system:serviceaccount:samples1-stage:sa-spring-demo -n samples1-dev
-  oc new-app -e POSTGRESQL_USER=luke -ePOSTGRESQL_PASSWORD=secret -ePOSTGRESQL_DATABASE=my_data openshift/postgresql-92-centos7 --name=my-database
-  oc create -f deploy-stage.yml
-  oc create -f svc-stage.yml
-  oc create -f route-stage.yml
+  oc policy add-role-to-user system:image-puller system:serviceaccount:sample-test:sa-spring-demo -n sample-dev
+  oc policy add-role-to-user system:image-puller system:serviceaccount:sample-test:default -n sample-dev
 
-  oc new-project samples1-prod
-  oc create -f configmap.yml
-  oc create -f sa.yml
-  oc create -f rb.yml
-  oc create -f secret.yml
-  oc policy add-role-to-user system:image-puller system:serviceaccount:samples1-prod:sa-spring-demo -n samples1-dev
   oc new-app -e POSTGRESQL_USER=luke -ePOSTGRESQL_PASSWORD=secret -ePOSTGRESQL_DATABASE=my_data openshift/postgresql-92-centos7 --name=my-database
-  oc create -f deploy-prod-blue.yml
-  oc create -f svc-prod-blue.yml
-  oc create -f deploy-prod-green.yml
-  oc create -f svc-prod-green.yml
-  oc create -f route-prod.yml
+
+  oc create -f deploy-test-blue.yml
+  oc create -f svc-test-blue.yml
+  oc create -f deploy-test-green.yml
+  oc create -f svc-test-green.yml
+  oc create -f route-test.yml
 
   cd ../pipeline
-  oc project samples1-dev
+  oc project sample-dev
   oc create -f pipeline.yml
-  oc policy add-role-to-user edit system:serviceaccount:samples1-dev:jenkins -n samples1-stage
-  oc policy add-role-to-user edit system:serviceaccount:samples1-dev:jenkins -n samples1-prod
+  oc policy add-role-to-user edit system:serviceaccount:sample-dev:jenkins -n sample-test
+
 ----
